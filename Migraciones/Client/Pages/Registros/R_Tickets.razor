@@ -1,0 +1,169 @@
+﻿@page "/RegistroTicket";
+@page "/RegistroTicket/{TicketId:int}";
+@inject HttpClient httpClient
+@inject NotificationService notificationService;
+
+<EditForm Model="tickets" OnValidSubmit="Guardar">
+    <DataAnnotationsValidator />
+    <div class="card">
+        <div class="card-header">
+            <h1>Registro Ticket</h1>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <label>TicketID:</label>
+                <div class="input-group col-md-6">
+                    <InputNumber @bind-Value="tickets.TicketId" class="id-input"></InputNumber>
+                    <button type="button" class="btn btn-dark oi oi-magnifying-glass" @onclick="Buscar"></button>
+                </div>
+                <div class="col-md-6">
+                    <label>Fecha:</label>
+                    <InputDate @bind-Value="tickets.Fecha" class="form-control"></InputDate>
+                    <ValidationMessage For="@(() => tickets.Fecha)" />
+                </div>
+                <div class="col-md-6">
+                    <label>ClienteID:</label>
+                    <InputNumber @bind-Value="tickets.ClienteId" class="form-control"></InputNumber>
+                    <ValidationMessage For="@(() => tickets.ClienteId)" />
+                </div>
+                <div class="col-md-6">
+                    <label>PrioridadID:</label>
+                    <InputNumber @bind-Value="tickets.PrioridadId" class="form-control"></InputNumber>
+                    <ValidationMessage For="@(() => tickets.PrioridadId)" />
+                </div>
+                <div class="col-md-6">
+                    <label>SolicitadoPor:</label>
+                    <InputText @bind-Value="tickets.SolicitadoPor" class="form-control"></InputText>
+                    <ValidationMessage For="@(() => tickets.SolicitadoPor)" />
+                </div>
+                <div class="col-md-6">
+                    <label>Asunto:</label>
+                    <InputText @bind-Value="tickets.Asunto" class="form-control"></InputText>
+                    <ValidationMessage For="@(() => tickets.Asunto)" />
+                </div>
+                <div class=" col-md-6">
+                    <label>Descripcion:</label>
+                    <InputText @bind-Value="tickets.Descripción" class="form-control"></InputText>
+                    <ValidationMessage For="@(() => tickets.Descripción)" />
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="button" class="btn btn-primary" @onclick="Nuevo">Nuevo <i class="oi oi-file" /></button>
+            <button class="btn btn-success">Guardar <i class="oi oi-document" /></button>
+            <button type="button" class="btn btn-danger" @onclick="Eliminar">Eliminar <i class="oi oi-trash" /></button>
+        </div>
+    </div>
+</EditForm>
+
+@code
+{
+    [Parameter]
+
+    public int TicketId { get; set; }
+
+    public Tickets tickets { get; set; } = new Tickets();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (TicketId > 0)
+        {
+            this.tickets.TicketId = TicketId;
+            await Buscar();
+        }
+    }
+
+    public async Task Buscar()
+    {
+        var ticketIdEncontrado = (await httpClient.GetFromJsonAsync<List<Tickets>>($"api/Tickets"))!
+        .ToList()
+        .Any(t => t.TicketId == tickets.TicketId);
+        if (ticketIdEncontrado)
+        {
+            var ticketEncontrado = await httpClient.GetFromJsonAsync<Tickets>($"api/Tickets/{tickets.TicketId}");
+            if (ticketEncontrado != null)
+            {
+                this.tickets = ticketEncontrado;
+                StateHasChanged();
+            }
+        }
+        else
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "No se encontro ningun Ticket",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+            return;
+        }
+    }
+
+    public async Task Guardar()
+    {
+        using var response = await httpClient.PostAsJsonAsync("api/Tickets", tickets);
+        if (!response.IsSuccessStatusCode)
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "No se pudo Guardar correctamente, verifique los campos",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+            return;
+        }
+        var ticketDevuelto = await response.Content.ReadFromJsonAsync<Tickets>();
+        if (ticketDevuelto is not null)
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Validacion",
+                    Detail = "Ticket Guardado Correctamente",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+            tickets = ticketDevuelto;
+            StateHasChanged();
+            this.Nuevo();
+        }
+    }
+
+    public void Nuevo()
+    {
+        this.tickets = new Tickets();
+    }
+
+    public async Task Eliminar()
+    {
+        using var response = await httpClient.DeleteAsync($"api/Tickets/{tickets.TicketId}");
+        if (!response.IsSuccessStatusCode)
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "El Ticket no fue Eliminado Correctamente",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+            return;
+        }
+        else
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Validacion",
+                    Detail = "Ticket Eliminado Correctamente",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+        }
+        Nuevo();
+    }
+}

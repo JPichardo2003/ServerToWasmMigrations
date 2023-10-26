@@ -1,0 +1,151 @@
+﻿@page "/RegistroPrioridad";
+@page "/RegistroPrioridad/{PrioridadId:int}";
+@inject HttpClient httpClient
+@inject NotificationService notificationService;
+
+<EditForm Model="prioridades" OnValidSubmit="Guardar">
+    <DataAnnotationsValidator />
+    <div class="card">
+        <div class="card-header">
+            <h1>Registro Prioridades</h1>
+        </div>
+        <div class="card-body">
+            <label>ID:</label>
+            <div class="input-group">
+                <InputNumber @bind-Value="prioridades.PrioridadId" class="id-input"></InputNumber>
+                <button type="button" class="btn btn-dark oi oi-magnifying-glass" @onclick="Buscar"></button>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <label>Descripci&oacute;n:</label>
+                    <InputText @bind-Value="prioridades.Descripción" class="form-control"></InputText>
+                    <ValidationMessage For="@(() => prioridades.Descripción)" />
+                </div>
+                <div class="col-md-6">
+                    <label>Dias de Compromiso:</label>
+                    <InputNumber @bind-Value="prioridades.DiasCompromiso" class="form-control"></InputNumber>
+                    <ValidationMessage For="@(() => prioridades.DiasCompromiso)" />
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="button" class="btn btn-primary" @onclick="Nuevo">Nuevo <i class="oi oi-file" /></button>
+            <button class="btn btn-success">Guardar <i class="oi oi-document" /></button>
+            <button type="button" class="btn btn-danger" @onclick="Eliminar">Eliminar <i class="oi oi-trash" /></button>
+        </div>
+    </div>
+</EditForm>
+
+
+@code
+{
+    [Parameter]
+
+    public int PrioridadId { get; set; }
+
+    public Prioridades prioridades { get; set; } = new Prioridades();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (PrioridadId > 0)
+        {
+            this.prioridades.PrioridadId = PrioridadId;
+            await Buscar();
+        }
+    }
+
+    public async Task Buscar()
+    {
+        var prioridadIdEncontrado = (await httpClient.GetFromJsonAsync<List<Prioridades>>($"api/Prioridades"))!
+        .ToList()
+        .Any(p => p.PrioridadId == prioridades.PrioridadId);
+        if (prioridadIdEncontrado)
+        {
+            var PrioridadEncontrada = await httpClient.GetFromJsonAsync<Prioridades>($"api/Prioridades/{prioridades.PrioridadId}");
+            if (PrioridadEncontrada != null)
+            {
+                this.prioridades = PrioridadEncontrada;
+                StateHasChanged();
+            }
+        }
+        else
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "No se encontro ninguna Prioridad",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+            return;
+        }
+    }
+
+    public async Task Guardar()
+    {
+        using var response = await httpClient.PostAsJsonAsync("api/Prioridades", prioridades);
+        if (!response.IsSuccessStatusCode)
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "No es posible Guardar",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+            return;
+        }
+        var prioridadDevuelta = await response.Content.ReadFromJsonAsync<Prioridades>();
+        if (prioridadDevuelta is not null)
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Validacion",
+                    Detail = "Prioridad Guardada Correctamente",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+            prioridades = prioridadDevuelta;
+            this.Nuevo();
+            StateHasChanged();
+        }
+    }
+
+    public void Nuevo()
+    {
+        this.prioridades = new Prioridades();
+    }
+
+    public async Task Eliminar()
+    {
+        using var response = await httpClient.DeleteAsync($"api/Prioridades/{prioridades.PrioridadId}");
+        if (!response.IsSuccessStatusCode)
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "No es posible Eliminar",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+            return;
+        }
+        else
+        {
+            var mensaje = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Validacion",
+                    Detail = "Prioridad Eliminada Correctamente",
+                    Duration = 4_000
+                };
+            notificationService.Notify(mensaje);
+
+        }
+        Nuevo();
+    }
+}
