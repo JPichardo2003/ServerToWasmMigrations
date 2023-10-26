@@ -1,0 +1,73 @@
+﻿@page "/ConsultaPrioridad";
+@inject HttpClient httpClient
+
+<div class="card-header row">
+    <label>Filtrar ID:</label>
+    <div class="col-md-6 input-group filter-input">
+        <InputNumber @bind-Value="Filtro" class="form-control"></InputNumber>
+        <div class="input-group-append">
+            <button type="button" class="btn btn-dark oi oi-magnifying-glass" @onclick="Buscar"></button>
+        </div>
+    </div>
+</div>
+
+@if (Prioridades is not null)
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Prioridad ID</th>
+                    <th>Descripci&oacute;n</th>
+                    <th>Dias de Compromiso</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var prioridades in Prioridades)
+                {
+                    <tr>
+                        <td>@prioridades.PrioridadId</td>
+                        <td>@prioridades.Descripción</td>
+                        <td>@prioridades.DiasCompromiso</td>
+                        <td><a href="RegistroCliente/@prioridades.PrioridadId">Ver</a></td>
+                    </tr>
+                }
+                <tr>
+                    <td>Conteo: @Conteo</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+}
+
+
+@code {
+
+    public int Filtro { get; set; }
+    public List<Prioridades>? Prioridades { get; set; }
+    public Prioridades? prioridades { get; set; } = new Prioridades();
+    public int Conteo { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Buscar();
+    }
+
+    public async Task Buscar()
+    {
+        if (Filtro == 0)
+        {
+            Prioridades = await httpClient.GetFromJsonAsync<List<Prioridades>>($"api/Prioridades");
+        }
+        else
+        {
+            var listaPrioridades = await httpClient.GetFromJsonAsync<List<Prioridades>>($"api/Prioridades/");
+            Prioridades = listaPrioridades?.Where(p => p.PrioridadId == Filtro).ToList();
+        }
+        Conteo = Prioridades != null ? Prioridades!.Count() : 0;
+        StateHasChanged();
+    }
+
+}
